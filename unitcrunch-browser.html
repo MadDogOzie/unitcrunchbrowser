@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>UnitCrunch Browser</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
+<style>
+:root {
+  --bg:#0a0a0f;--bg2:#0f0f1a;--bg3:#141428;
+  --panel:#161625;--panel2:#1e1e35;
+  --border:#252540;--border-h:#4a3080;
+  --accent:#7c3aed;--accent2:#a855f7;--accent3:#c084fc;
+  --hot:#f59e0b;--danger:#ef4444;--success:#22c55e;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --glow:0 0 18px rgba(124,58,237,.35);
+  --glow-hot:0 0 18px rgba(245,158,11,.4);
+  --r:6px;--fh:'Orbitron',monospace;--fb:'Rajdhani',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:16px;overflow-x:hidden;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(124,58,237,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,.035) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none;z-index:0}
+
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:100;background:rgba(10,10,15,.97);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hdr-title{font-family:var(--fh);font-size:.9rem;font-weight:900;letter-spacing:.12em;color:var(--accent2);
+  text-shadow:0 0 22px rgba(168,85,247,.5);white-space:nowrap;flex-shrink:0}
+.hdr-title span{color:var(--hot)}
+.hdr-stats{font-size:.78rem;color:var(--text3);letter-spacing:.04em;flex:1;min-width:0}
+.hdr-actions{display:flex;gap:8px;flex-shrink:0}
+
+/* BUTTONS */
+.btn{font-family:var(--fb);font-weight:600;font-size:.82rem;letter-spacing:.06em;padding:7px 13px;
+  border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase}
+.btn-ghost{background:transparent;color:var(--text2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent2)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:var(--glow)}
+.btn-primary:hover{background:var(--accent2)}
+.btn-hot{background:var(--hot);color:#000;border-color:var(--hot);font-weight:700;box-shadow:var(--glow-hot)}
+.btn-hot:hover{background:#fbbf24}
+.btn-hot:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.btn-danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+.btn-sm{padding:4px 9px;font-size:.72rem}
+
+/* LAYOUT */
+.app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+.content{flex:1;display:flex;flex-direction:column;padding:14px 16px;gap:14px;max-width:1440px;margin:0 auto;width:100%}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border-h);border-radius:12px;padding:48px 24px;text-align:center;
+  cursor:pointer;transition:all .2s;background:rgba(124,58,237,.03);position:relative;overflow:hidden}
+.upload-zone::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 60%,rgba(124,58,237,.08) 0%,transparent 70%);pointer-events:none}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent2);background:rgba(124,58,237,.07)}
+.upload-icon{font-size:2.8rem;margin-bottom:14px;opacity:.6}
+.upload-title{font-family:var(--fh);font-size:.95rem;color:var(--accent2);margin-bottom:8px;letter-spacing:.1em}
+.upload-sub{font-size:.84rem;color:var(--text3);margin-bottom:18px;line-height:1.55}
+#fi{display:none}
+
+/* CONTROLS */
+.controls{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap::before{content:'⌕';position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:1.1rem;pointer-events:none}
+input[type=text],select{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-family:var(--fb);font-size:.88rem;padding:8px 11px;outline:none;transition:border-color .15s;width:100%}
+.search-wrap input{padding-left:34px}
+input[type=text]:focus,select:focus{border-color:var(--accent)}
+select{cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2364748b' d='M5 7 0 2h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;padding-right:30px}
+
+/* KEYWORD CHIPS */
+.kw-filter{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.kw-label{font-size:.72rem;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.chip{font-family:var(--fb);font-size:.68rem;font-weight:600;letter-spacing:.05em;padding:3px 8px;
+  border-radius:20px;border:1px solid var(--border);cursor:pointer;transition:all .15s;text-transform:uppercase;color:var(--text3);background:transparent}
+.chip:hover{border-color:var(--accent);color:var(--accent2)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* FILE LIST */
+.file-list{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.f-chip{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:4px 9px;font-size:.78rem;color:var(--text2);max-width:220px}
+.f-chip.active{border-color:var(--accent);color:var(--accent2)}
+.f-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;flex:1}
+.f-chip-x{cursor:pointer;color:var(--text3);font-size:.85rem;flex-shrink:0;line-height:1}
+.f-chip-x:hover{color:var(--danger)}
+
+/* UNITS HEADER */
+.units-hdr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.units-count{font-family:var(--fh);font-size:.7rem;color:var(--text3);letter-spacing:.1em}
+.units-count strong{color:var(--accent2)}
+.sel-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.sel-badge{font-family:var(--fh);font-size:.7rem;color:var(--hot);letter-spacing:.05em;
+  padding:3px 9px;border:1px solid rgba(245,158,11,.3);border-radius:20px;background:rgba(245,158,11,.07)}
+
+/* GRID */
+.units-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:10px}
+
+/* UNIT CARD */
+.unit-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);
+  transition:border-color .14s,box-shadow .14s,transform .14s;position:relative;overflow:hidden;user-select:none}
+.unit-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:0;transition:opacity .14s}
+.unit-card:hover{border-color:var(--border-h);transform:translateY(-1px)}
+.unit-card:hover::after{opacity:.5}
+.unit-card.any-sel{border-color:var(--accent);background:rgba(124,58,237,.08);box-shadow:var(--glow)}
+.unit-card.any-sel::after{opacity:1}
+
+/* card top */
+.card-top{padding:13px 13px 10px;cursor:pointer}
+.card-name{font-family:var(--fh);font-size:.78rem;font-weight:700;color:var(--text);
+  margin-bottom:5px;letter-spacing:.05em;line-height:1.3}
+.card-faction{font-size:.7rem;color:var(--accent3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600}
+.card-meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:8px;align-items:center}
+.stat-pill{font-size:.68rem;font-weight:600;color:var(--text2);background:rgba(255,255,255,.04);
+  border:1px solid var(--border);border-radius:4px;padding:2px 7px;letter-spacing:.03em}
+.stat-pill em{color:var(--text3);font-style:normal;font-size:.62rem}
+.pts-badge{font-size:.7rem;font-weight:700;color:var(--hot);background:rgba(245,158,11,.1);
+  border:1px solid rgba(245,158,11,.25);border-radius:4px;padding:2px 7px;letter-spacing:.03em}
+.card-kws{display:flex;gap:3px;flex-wrap:wrap}
+.kw-tag{font-size:.6rem;font-weight:600;letter-spacing:.04em;color:var(--text3);text-transform:uppercase}
+.kw-tag+.kw-tag::before{content:'·';margin-right:3px}
+
+/* VARIANTS */
+.variants{border-top:1px solid var(--border);padding:8px 12px 11px;display:flex;flex-direction:column;gap:5px}
+.variants-label{font-size:.62rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.v-row{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:4px;
+  border:1px solid var(--border);background:rgba(255,255,255,.02);transition:all .12s;cursor:pointer}
+.v-row:hover{border-color:var(--border-h);background:rgba(124,58,237,.06)}
+.v-row.v-sel{border-color:var(--accent);background:rgba(124,58,237,.18)}
+.v-check{width:17px;height:17px;border:1.5px solid var(--border);border-radius:3px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all .12s}
+.v-row.v-sel .v-check{background:var(--accent);border-color:var(--accent);color:#fff}
+.v-label{font-family:var(--fh);font-size:.66rem;color:var(--text2);letter-spacing:.06em;flex:1;line-height:1}
+.v-row.v-sel .v-label{color:var(--accent3)}
+.v-pts{font-size:.7rem;font-weight:700;color:var(--hot);white-space:nowrap}
+.v-models{font-size:.62rem;color:var(--text3);white-space:nowrap}
+
+/* LOADING / EMPTY */
+.loading{text-align:center;padding:48px 24px}
+.loader{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:var(--fh);font-size:.8rem;color:var(--text3);letter-spacing:.1em}
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-icon{font-size:2.4rem;margin-bottom:10px;opacity:.35}
+.empty-text{font-family:var(--fh);font-size:.8rem;letter-spacing:.1em}
+
+/* SEC LABEL */
+.sec-label{font-family:var(--fh);font-size:.62rem;letter-spacing:.14em;color:var(--text3);text-transform:uppercase;margin-bottom:7px}
+
+/* EXPORT BAR */
+.export-bar{position:sticky;bottom:0;z-index:50;background:rgba(10,10,15,.97);backdrop-filter:blur(14px);
+  border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.export-info{flex:1;font-size:.83rem;color:var(--text2)}
+.export-info strong{color:var(--hot);font-family:var(--fh)}
+.exp-warn{color:var(--danger);margin-left:8px;display:none}
+
+/* TOAST */
+.toast{position:fixed;bottom:76px;right:16px;background:var(--bg3);border:1px solid var(--success);color:var(--success);
+  padding:9px 15px;border-radius:var(--r);font-family:var(--fh);font-size:.72rem;letter-spacing:.1em;
+  z-index:300;pointer-events:none;animation:tin .25s ease,tout .25s ease 2.5s forwards}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes tout{to{opacity:0;transform:translateY(-6px)}}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-h);border-radius:3px}
+
+@media(max-width:600px){
+  .hdr{padding:9px 12px}.hdr-title{font-size:.8rem}
+  .content{padding:11px 12px;gap:11px}
+  .units-grid{grid-template-columns:1fr}
+  .btn{padding:6px 11px;font-size:.78rem}
+  .upload-zone{padding:30px 16px}
+}
+@media(min-width:900px){.units-grid{grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="hdr">
+  <div class="hdr-title">UNIT<span>CRUNCH</span> BROWSER</div>
+  <div class="hdr-stats" id="hdr-stats">Load a UnitCrunch export file to begin</div>
+  <div class="hdr-actions">
+    <button class="btn btn-ghost" onclick="document.getElementById('fi').click()">+ Add File</button>
+    <input type="file" id="fi" accept=".txt,.bin" multiple>
+  </div>
+</header>
+
+<div class="content">
+
+  <div id="file-list-wrap" style="display:none">
+    <div class="sec-label">Loaded Files</div>
+    <div class="file-list" id="file-list"></div>
+  </div>
+
+  <div class="upload-zone" id="upload-zone" onclick="document.getElementById('fi').click()">
+    <div class="upload-icon">⬡</div>
+    <div class="upload-title">Load UnitCrunch Export</div>
+    <div class="upload-sub">Drop your Wahapedia .txt export files here, or click to browse.<br>Load individual faction files or your combined master file.</div>
+    <button class="btn btn-primary" style="pointer-events:none">SELECT FILES</button>
+  </div>
+
+  <div class="loading" id="loading" style="display:none">
+    <div class="loader"></div>
+    <div class="loading-text">PARSING PROFILES...</div>
+  </div>
+
+  <div id="controls-wrap" style="display:none">
+    <div class="controls">
+      <div class="search-wrap"><input type="text" id="search" placeholder="Search units…" oninput="renderUnits()"></div>
+      <select id="faction-sel" onchange="renderUnits()" style="min-width:155px"><option value="">All Factions</option></select>
+      <select id="sort-sel" onchange="renderUnits()" style="min-width:145px">
+        <option value="name">Name A–Z</option>
+        <option value="name-d">Name Z–A</option>
+        <option value="pts">Points ↑</option>
+        <option value="pts-d">Points ↓</option>
+        <option value="wounds">Wounds ↑</option>
+        <option value="tough">Toughness ↑</option>
+      </select>
+    </div>
+    <div style="margin-top:9px">
+      <div class="kw-filter">
+        <span class="kw-label">Keywords:</span>
+        <div id="kw-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="units-hdr" id="units-hdr" style="display:none">
+    <div class="units-count" id="units-count"></div>
+    <div class="sel-actions">
+      <div class="sel-badge" id="sel-badge" style="display:none"></div>
+      <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectNone()">Clear</button>
+    </div>
+  </div>
+
+  <div class="units-grid" id="units-grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <div class="empty-icon">◌</div>
+    <div class="empty-text">NO UNITS MATCH YOUR FILTERS</div>
+  </div>
+
+</div>
+
+<div class="export-bar" id="export-bar" style="display:none">
+  <div class="export-info">
+    <strong id="exp-count">0</strong> profiles selected
+    <span class="exp-warn" id="exp-warn">⚠ Over 200 limit!</span>
+  </div>
+  <button class="btn btn-danger btn-sm" onclick="selectNone()">Clear</button>
+  <button class="btn btn-hot" id="exp-btn" onclick="doExport()" disabled>↓ EXPORT TXT</button>
+</div>
+
+</div>
+
+<script>
+// ── STATE ──
+let groups = [];        // UnitGroup[]
+let files  = [];        // {name, data: ArrayBuffer}
+let selected = new Set();
+let activeFileIdx = null;
+let activeKw = new Set();
+
+// ── FILE INPUT ──
+const fi = document.getElementById('fi');
+const uz = document.getElementById('upload-zone');
+fi.addEventListener('change', e => { handleFiles([...e.target.files]); fi.value=''; });
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
+uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.classList.remove('drag-over');
+  handleFiles([...e.dataTransfer.files]);
+});
+
+async function handleFiles(list) {
+  if (!list.length) return;
+  document.getElementById('loading').style.display = 'block';
+  uz.style.display = 'none';
+  for (const f of list) files.push({ name: f.name, data: await f.arrayBuffer() });
+  rebuildGroups();
+  document.getElementById('loading').style.display = 'none';
+  if (groups.length) { initUI(); }
+  else { toast('No units found — is this a valid UnitCrunch export?', true); uz.style.display='block'; }
+}
+
+// ── PARSE ──
+function parseFile(buf) {
+  try {
+    const d = msgpack.decode(new Uint8Array(buf));
+    const a = d.profiles || d;
+    return Array.isArray(a) ? a : [];
+  } catch(e) { console.error(e); return []; }
+}
+
+function inferFaction(fname) {
+  return fname.replace(/\.(txt|bin)$/i,'').replace(/[-_]/g,' ').replace(/wahapedia.*/i,'').trim()
+    .split(' ').filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' ') || 'Unknown';
+}
+
+function rebuildGroups() {
+  selected.clear();
+  const map = new Map();
+
+  for (let fi=0; fi<files.length; fi++) {
+    const profiles = parseFile(files[fi].data);
+    const faction  = inferFaction(files[fi].name);
+
+    for (const p of profiles) {
+      const rawName   = p.name || '';
+      const unitName  = p.units?.name || rawName.replace(/\s+x\d+$/i,'').trim() || rawName;
+      const sizeMatch = rawName.match(/\s+x(\d+)$/i);
+      const sizeNum   = sizeMatch ? parseInt(sizeMatch[1]) : 1;
+      const label     = sizeMatch ? `x${sizeNum}` : '';
+
+      const points    = Number(p.units?.pointsP ?? p.units?.points ?? 0) || 0;
+      const keywords  = (p.computed_keywords||[]).filter(Boolean);
+      const roles     = (p.computed_roles||[]).filter(Boolean);
+      const toughness = p.computed_toughness || 0;
+      const wounds    = p.computed_wounds    || 0;
+      const mt = p.units?.model_types || {};
+      const mk = Object.keys(mt)[0];
+      const save = mk ? (mt[mk].save||0) : 0;
+
+      const gKey = `${fi}||${unitName}||${faction}`;
+      const id   = `${fi}||${p.units?.id||rawName}||${sizeNum}`;
+
+      if (!map.has(gKey)) {
+        map.set(gKey, { key:gKey, baseName:unitName, faction, keywords, roles, toughness, wounds, save, fileIdx:fi, variants:[] });
+      }
+      map.get(gKey).variants.push({ id, label, points, modelCount:sizeNum, _raw:p });
+    }
+  }
+
+  for (const g of map.values()) g.variants.sort((a,b)=>a.modelCount-b.modelCount);
+  groups = [...map.values()];
+}
+
+// ── INIT UI ──
+function initUI() {
+  ['file-list-wrap','controls-wrap','units-hdr','export-bar'].forEach(id=>document.getElementById(id).style.display='block');
+  document.getElementById('units-hdr').style.display='flex';
+  document.getElementById('export-bar').style.display='flex';
+  updateFileList();
+
+  const factions = [...new Set(groups.map(g=>g.faction))].sort();
+  const sel = document.getElementById('faction-sel');
+  sel.innerHTML = '<option value="">All Factions</option>';
+  factions.forEach(f=>sel.innerHTML+=`<option value="${esc(f)}">${esc(f)}</option>`);
+
+  const freq={};
+  groups.forEach(g=>g.keywords.forEach(k=>{freq[k]=(freq[k]||0)+1}));
+  const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,22).map(e=>e[0]);
+  const cc=document.getElementById('kw-chips');
+  cc.innerHTML='';
+  top.forEach(kw=>{
+    const c=document.createElement('button');
+    c.className='chip';c.textContent=kw;
+    c.onclick=()=>{c.classList.toggle('active');if(activeKw.has(kw))activeKw.delete(kw);else activeKw.add(kw);renderUnits();};
+    cc.appendChild(c);
+  });
+
+  const total=groups.reduce((s,g)=>s+g.variants.length,0);
+  const f=new Set(groups.map(g=>g.faction)).size;
+  document.getElementById('hdr-stats').textContent=
+    `${groups.length} units · ${total} profiles · ${f} faction${f!==1?'s':''} · ${files.length} file${files.length!==1?'s':''}`;
+
+  renderUnits();
+}
+
+function updateFileList() {
+  const wrap=document.getElementById('file-list');
+  wrap.innerHTML='';
+  const all=document.createElement('div');
+  all.className='f-chip'+(activeFileIdx===null?' active':'');
+  all.innerHTML=`<span class="f-chip-name" onclick="filterFile(null)">All Files</span>`;
+  wrap.appendChild(all);
+  files.forEach((f,i)=>{
+    const c=document.createElement('div');
+    c.className='f-chip'+(activeFileIdx===i?' active':'');
+    c.innerHTML=`<span class="f-chip-name" title="${esc(f.name)}" onclick="filterFile(${i})">${esc(f.name)}</span>
+      <span class="f-chip-x" onclick="removeFile(${i})">✕</span>`;
+    wrap.appendChild(c);
+  });
+}
+
+function filterFile(idx){activeFileIdx=idx;selected.clear();updateFileList();renderUnits();}
+function removeFile(idx){
+  files.splice(idx,1);
+  if(!files.length){resetUI();return;}
+  if(activeFileIdx===idx)activeFileIdx=null;
+  else if(activeFileIdx>idx)activeFileIdx--;
+  rebuildGroups();updateFileList();initUI();
+}
+function resetUI(){
+  groups=[];selected.clear();activeFileIdx=null;
+  ['file-list-wrap','controls-wrap','units-hdr','export-bar'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('units-grid').innerHTML='';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('hdr-stats').textContent='Load a UnitCrunch export file to begin';
+  uz.style.display='block';
+}
+
+// ── RENDER ──
+function getFiltered(){
+  const q=document.getElementById('search').value.toLowerCase().trim();
+  const faction=document.getElementById('faction-sel').value;
+  const sortBy=document.getElementById('sort-sel').value;
+  let gs=groups;
+  if(activeFileIdx!==null)gs=gs.filter(g=>g.fileIdx===activeFileIdx);
+  if(faction)gs=gs.filter(g=>g.faction===faction);
+  if(q)gs=gs.filter(g=>g.baseName.toLowerCase().includes(q)||g.faction.toLowerCase().includes(q)||g.keywords.some(k=>k.toLowerCase().includes(q)));
+  if(activeKw.size>0)gs=gs.filter(g=>[...activeKw].every(k=>g.keywords.includes(k)));
+  return [...gs].sort((a,b)=>{
+    switch(sortBy){
+      case 'name':  return a.baseName.localeCompare(b.baseName);
+      case 'name-d':return b.baseName.localeCompare(a.baseName);
+      case 'pts':   return a.variants[0].points-b.variants[0].points;
+      case 'pts-d': return b.variants[0].points-a.variants[0].points;
+      case 'wounds':return a.wounds-b.wounds;
+      case 'tough': return a.toughness-b.toughness;
+      default:      return a.baseName.localeCompare(b.baseName);
+    }
+  });
+}
+
+function renderUnits(){
+  const gs=getFiltered();
+  const grid=document.getElementById('units-grid');
+  const emp=document.getElementById('empty');
+  document.getElementById('units-count').innerHTML=`Showing <strong>${gs.length}</strong> of ${groups.length} units`;
+  grid.style.display=gs.length?'grid':'none';
+  emp.style.display=gs.length?'none':'block';
+  grid.innerHTML='';
+  gs.forEach(g=>grid.appendChild(buildCard(g)));
+  updateExportBar();
+}
+
+function buildCard(g){
+  const card=document.createElement('div');
+  const anyS=g.variants.some(v=>selected.has(v.id));
+  card.className='unit-card'+(anyS?' any-sel':'');
+  card.dataset.key=g.key;
+
+  const stats=[];
+  if(g.wounds)   stats.push(`<span class="stat-pill"><em>W</em> ${g.wounds}</span>`);
+  if(g.toughness)stats.push(`<span class="stat-pill"><em>T</em> ${g.toughness}</span>`);
+  if(g.save)     stats.push(`<span class="stat-pill"><em>Sv</em> ${g.save}+</span>`);
+
+  const multi=g.variants.length>1;
+
+  // Single variant: show pts in meta, clicking top toggles it
+  const singlePts=!multi&&g.variants[0]?.points?`<span class="pts-badge">${g.variants[0].points}pts</span>`:'';
+
+  let varHtml='';
+  if(multi){
+    const rows=g.variants.map(v=>`
+      <div class="v-row${selected.has(v.id)?' v-sel':''}" data-vid="${esc(v.id)}"
+           onclick="toggleV('${esc(v.id)}','${esc(g.key)}',event)">
+        <div class="v-check">✓</div>
+        <div class="v-label">${esc(v.label||'Single')}</div>
+        <div class="v-models">${v.modelCount} model${v.modelCount!==1?'s':''}</div>
+        ${v.points?`<div class="v-pts">${v.points}pts`:''}${v.points?'</div>':''}
+      </div>`).join('');
+    varHtml=`<div class="variants"><div class="variants-label">Unit Size — select one or more</div>${rows}</div>`;
+  }
+
+  card.innerHTML=`
+    <div class="card-top">
+      <div class="card-name">${esc(g.baseName)}</div>
+      <div class="card-faction">${esc(g.faction)}</div>
+      <div class="card-meta">${singlePts}${stats.join('')}</div>
+      <div class="card-kws">${g.keywords.slice(0,7).map(k=>`<span class="kw-tag">${esc(k)}</span>`).join('')}</div>
+    </div>${varHtml}`;
+
+  // Single variant: whole card-top is clickable
+  if(!multi){
+    card.querySelector('.card-top').style.cursor='pointer';
+    card.querySelector('.card-top').onclick=()=>toggleV(g.variants[0].id,g.key,null);
+  }
+  return card;
+}
+
+function toggleV(vid,gKey,ev){
+  if(ev)ev.stopPropagation();
+  if(selected.has(vid))selected.delete(vid);else selected.add(vid);
+
+  // Patch card in-place
+  const card=document.querySelector(`.unit-card[data-key="${CSS.escape(gKey)}"]`);
+  if(card){
+    const g=groups.find(g=>g.key===gKey);
+    const anyS=g&&g.variants.some(v=>selected.has(v.id));
+    card.classList.toggle('any-sel',!!anyS);
+    const row=card.querySelector(`.v-row[data-vid="${CSS.escape(vid)}"]`);
+    if(row)row.classList.toggle('v-sel',selected.has(vid));
+  }
+  updateExportBar();
+}
+
+function selectAll(){getFiltered().forEach(g=>g.variants.forEach(v=>selected.add(v.id)));renderUnits();}
+function selectNone(){selected.clear();renderUnits();}
+
+function updateExportBar(){
+  const n=selected.size;
+  const badge=document.getElementById('sel-badge');
+  badge.style.display=n?'block':'none';
+  if(n)badge.textContent=`${n} profiles`;
+  document.getElementById('exp-count').textContent=n;
+  document.getElementById('exp-btn').disabled=n===0;
+  document.getElementById('exp-warn').style.display=n>200?'inline':'none';
+}
+
+// ── EXPORT ──
+function doExport(){
+  const allV=groups.flatMap(g=>g.variants);
+  const chosen=allV.filter(v=>selected.has(v.id));
+  if(!chosen.length)return;
+
+  let appVersion='0.73.8',exported=Date.now();
+  try{const d=msgpack.decode(new Uint8Array(files[0].data));appVersion=d.appVersion||appVersion;exported=d.exported||exported;}catch(e){}
+
+  const payload={appVersion,exported,profiles:chosen.map(v=>v._raw)};
+  const blob=new Blob([msgpack.encode(payload)],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+
+  const facs=[...new Set(chosen.map(v=>{const g=groups.find(g=>g.variants.includes(v));return g?.faction||'';}).filter(Boolean))];
+  const fname=facs.length===1?`${facs[0].toLowerCase().replace(/\s+/g,'-')}-${chosen.length}profiles.txt`:`multi-faction-${chosen.length}profiles.txt`;
+
+  const a=document.createElement('a');a.href=url;a.download=fname;a.click();URL.revokeObjectURL(url);
+  toast(`Exported ${chosen.length} profile${chosen.length!==1?'s':''}`);
+}
+
+// ── UTILS ──
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(msg,isErr){
+  const t=document.createElement('div');t.className='toast';
+  if(isErr){t.style.borderColor='var(--danger)';t.style.color='var(--danger)';}
+  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+</script>
+</body>
+</html>
